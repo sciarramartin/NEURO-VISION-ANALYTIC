@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase/client';
 import { PUNTOS_MEDICION, RegionKey, LadoKey } from '@/lib/math/angles';
 import { calcularVelocidades, calcularAsimetria } from '@/lib/math/kinematics';
 import { analyzeTremor } from '@/lib/math/fft';

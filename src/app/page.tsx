@@ -3,7 +3,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { useApp } from '@/context/AppContext';
-import { supabase } from '@/lib/supabase/client';
 import { Session } from '@/lib/types/database';
 import { 
   Users, Activity, Calendar, Play, FileText, Search, 

@@ -1,4 +1,4 @@
-import { supabase } from './supabase/client';
+import { createClient } from '@supabase/supabase-js';
 
 export interface DBClient {
   getPatients(): Promise<any[]>;
@@ -17,8 +17,7 @@ export async function getDB(): Promise<DBClient> {
   const hasSupabaseEnv =
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
     process.env.NEXT_PUBLIC_SUPABASE_URL !== 'https://placeholder-project.supabase.co' &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY !== 'placeholder-anon-key';
+    (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   const isVercelOrProdBuild = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
 
@@ -40,15 +39,19 @@ export async function getDB(): Promise<DBClient> {
 
 // 1. Supabase Implementation
 function getSupabaseClient(): DBClient {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+  const serverSupabase = createClient(supabaseUrl, supabaseKey);
+
   return {
     async getPatients() {
-      const { data: patients, error: pError } = await supabase
+      const { data: patients, error: pError } = await serverSupabase
         .from('patients')
         .select('id, name, birth_date, created_at');
 
       if (pError) throw pError;
 
-      const { data: sessions, error: sError } = await supabase
+      const { data: sessions, error: sError } = await serverSupabase
         .from('sessions')
         .select('patient_id');
 
@@ -66,7 +69,7 @@ function getSupabaseClient(): DBClient {
     },
 
     async createPatient(name, birth_date) {
-      const { data, error } = await supabase
+      const { data, error } = await serverSupabase
         .from('patients')
         .insert({
           name,
@@ -80,7 +83,7 @@ function getSupabaseClient(): DBClient {
     },
 
     async getSessions(patientId, limit) {
-      let query = supabase.from('sessions').select('*');
+      let query = serverSupabase.from('sessions').select('*');
       if (patientId) {
         query = query.eq('patient_id', patientId).order('created_at', { ascending: true });
       } else {
@@ -93,7 +96,7 @@ function getSupabaseClient(): DBClient {
     },
 
     async createSession(session) {
-      const { data, error } = await supabase
+      const { data, error } = await serverSupabase
         .from('sessions')
         .insert({
           patient_id: session.patient_id,
@@ -118,7 +121,7 @@ function getSupabaseClient(): DBClient {
     },
 
     async deleteSession(id) {
-      const { error } = await supabase
+      const { error } = await serverSupabase
         .from('sessions')
         .delete()
         .eq('id', id);
