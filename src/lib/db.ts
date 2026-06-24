@@ -26,8 +26,8 @@ export async function getDB(): Promise<DBClient> {
   const isVercelOrProdBuild = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production';
 
   if (hasPostgres) {
-    console.log('Database running in Neon PostgreSQL production mode.');
-    dbInstance = await getPostgresClient(postgresUrl);
+    console.log('Database running in Neon PostgreSQL production mode (via Prisma).');
+    dbInstance = getPrismaClient();
   } else if (hasSupabaseEnv) {
     console.log('Database running in Supabase production mode.');
     dbInstance = getSupabaseClient();
@@ -44,93 +44,115 @@ export async function getDB(): Promise<DBClient> {
   return dbInstance;
 }
 
-// 1. Neon/PostgreSQL Implementation using Dynamic Imports
-async function getPostgresClient(connectionString: string): Promise<DBClient> {
-  const postgres = (await import('postgres')).default;
-  const sql = postgres(connectionString, {
-    ssl: 'require',
-    max: 10,
-    idle_timeout: 20,
-    connect_timeout: 30
-  });
+// 1. Neon/PostgreSQL Implementation using Prisma ORM
+function getPrismaClient(): DBClient {
+  const { prisma } = require('./prisma');
 
   return {
     async getPatients() {
-      const rows = await sql`
-        SELECT p.id, p.name, p.birth_date, p.created_at, COUNT(s.id)::int as sessions_count 
-        FROM patients p 
-        LEFT JOIN sessions s ON p.id = s.patient_id 
-        GROUP BY p.id, p.name, p.birth_date, p.created_at
-        ORDER BY p.created_at DESC
-      `;
-      return rows.map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        birth_date: r.birth_date ? (typeof r.birth_date === 'string' ? r.birth_date : r.birth_date.toISOString().split('T')[0]) : null,
-        created_at: r.created_at ? (typeof r.created_at === 'string' ? r.created_at : r.created_at.toISOString()) : r.created_at,
-        sessions_count: r.sessions_count
+      const patients = await prisma.patient.findMany({
+        include: {
+          sessions: {
+            select: { id: true }
+          }
+        },
+        orderBy: {
+          createdAt: 'desc'
+        }
+      });
+      return patients.map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        birth_date: p.birthDate ? p.birthDate.toISOString().split('T')[0] : null,
+        created_at: p.createdAt.toISOString(),
+        sessions_count: p.sessions.length
       }));
     },
 
     async createPatient(name, birth_date) {
-      const [row] = await sql`
-        INSERT INTO patients (name, birth_date)
-        VALUES (${name}, ${birth_date || null})
-        RETURNING id, name, birth_date, created_at
-      `;
+      const p = await prisma.patient.create({
+        data: {
+          name,
+          birthDate: birth_date ? new Date(birth_date) : null
+        }
+      });
       return {
-        id: row.id,
-        name: row.name,
-        birth_date: row.birth_date ? (typeof row.birth_date === 'string' ? row.birth_date : row.birth_date.toISOString().split('T')[0]) : null,
-        created_at: row.created_at ? (typeof row.created_at === 'string' ? row.created_at : row.created_at.toISOString()) : row.created_at,
+        id: p.id,
+        name: p.name,
+        birth_date: p.birthDate ? p.birthDate.toISOString().split('T')[0] : null,
+        created_at: p.createdAt.toISOString(),
         sessions_count: 0
       };
     },
 
     async getSessions(patientId, limit) {
-      let rows;
-      if (patientId) {
-        rows = await sql`
-          SELECT * FROM sessions 
-          WHERE patient_id = ${patientId} 
-          ORDER BY created_at ASC
-        `;
-      } else {
-        const lim = limit || 10;
-        rows = await sql`
-          SELECT * FROM sessions 
-          ORDER BY created_at DESC 
-          LIMIT ${lim}
-        `;
-      }
-      return rows.map((r: any) => ({
-        ...r,
-        created_at: r.created_at ? (typeof r.created_at === 'string' ? r.created_at : r.created_at.toISOString()) : r.created_at
+      const sessions = await prisma.session.findMany({
+        where: patientId ? { patientId } : undefined,
+        orderBy: {
+          createdAt: patientId ? 'asc' : 'desc'
+        },
+        take: patientId ? undefined : (limit || 10)
+      });
+      return sessions.map((s: any) => ({
+        id: s.id,
+        patient_id: s.patientId,
+        modo: s.modo,
+        region: s.region,
+        lado: s.lado,
+        tiempo_medicion: s.tiempoMedicion,
+        angulo_min: s.anguloMin,
+        angulo_max: s.anguloMax,
+        angulo_promedio: s.anguloPromedio,
+        velocidad_max: s.velocidadMax,
+        frecuencia_temblor: s.frecuenciaTemblor,
+        amplitud_temblor: s.amplitudTemblor,
+        asimetria_index: s.asimetriaIndex,
+        datos_angulos: s.datosAngulos,
+        created_at: s.createdAt.toISOString()
       }));
     },
 
     async createSession(session) {
-      const [row] = await sql`
-        INSERT INTO sessions (
-          patient_id, modo, region, lado, tiempo_medicion,
-          angulo_min, angulo_max, angulo_promedio, velocidad_max,
-          frecuencia_temblor, amplitud_temblor, asimetria_index, datos_angulos
-        ) VALUES (
-          ${session.patient_id}, ${session.modo}, ${session.region}, ${session.lado}, ${session.tiempo_medicion},
-          ${session.angulo_min}, ${session.angulo_max}, ${session.angulo_promedio}, ${session.velocidad_max},
-          ${session.frecuencia_temblor}, ${session.amplitud_temblor}, ${session.asimetria_index || null}, ${session.datos_angulos || ''}
-        ) RETURNING *
-      `;
+      const s = await prisma.session.create({
+        data: {
+          patientId: session.patient_id,
+          modo: session.modo,
+          region: session.region,
+          lado: session.lado,
+          tiempoMedicion: Number(session.tiempo_medicion),
+          anguloMin: Number(session.angulo_min),
+          anguloMax: Number(session.angulo_max),
+          anguloPromedio: Number(session.angulo_promedio),
+          velocidadMax: Number(session.velocidad_max),
+          frecuenciaTemblor: session.frecuencia_temblor ? Number(session.frecuencia_temblor) : null,
+          amplitudTemblor: session.amplitud_temblor ? Number(session.amplitud_temblor) : null,
+          asimetriaIndex: session.asimetria_index ? Number(session.asimetria_index) : null,
+          datosAngulos: session.datos_angulos || ''
+        }
+      });
       return {
-        ...row,
-        created_at: row.created_at ? (typeof row.created_at === 'string' ? row.created_at : row.created_at.toISOString()) : row.created_at
+        id: s.id,
+        patient_id: s.patientId,
+        modo: s.modo,
+        region: s.region,
+        lado: s.lado,
+        tiempo_medicion: s.tiempoMedicion,
+        angulo_min: s.anguloMin,
+        angulo_max: s.anguloMax,
+        angulo_promedio: s.anguloPromedio,
+        velocidad_max: s.velocidadMax,
+        frecuencia_temblor: s.frecuenciaTemblor,
+        amplitud_temblor: s.amplitudTemblor,
+        asimetria_index: s.asimetriaIndex,
+        datos_angulos: s.datosAngulos,
+        created_at: s.createdAt.toISOString()
       };
     },
 
     async deleteSession(id) {
-      await sql`
-        DELETE FROM sessions WHERE id = ${id}
-      `;
+      await prisma.session.delete({
+        where: { id }
+      });
       return { success: true };
     }
   };

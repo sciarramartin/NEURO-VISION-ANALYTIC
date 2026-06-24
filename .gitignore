@@ -47,3 +47,6 @@ __pycache__/
 .venv/
 agent-skills-main.zip
 agent-skills-main/
+
+.vercel
+.env*

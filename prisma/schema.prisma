@@ -1,0 +1,39 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Patient {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name       String
+  birthDate  DateTime? @map("birth_date") @db.Date
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  sessions   Session[]
+
+  @@map("patients")
+}
+
+model Session {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId         String   @map("patient_id") @db.Uuid
+  patient           Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  modo              String   @db.VarChar(10)
+  region            String   @db.VarChar(20)
+  lado              String   @db.VarChar(10)
+  tiempoMedicion    Float    @map("tiempo_medicion")
+  anguloMin         Float    @map("angulo_min")
+  anguloMax         Float    @map("angulo_max")
+  anguloPromedio    Float    @map("angulo_promedio")
+  velocidadMax      Float    @map("velocidad_max")
+  frecuenciaTemblor Float?   @map("frecuencia_temblor")
+  amplitudTemblor   Float?   @map("amplitud_temblor")
+  asimetriaIndex    Float?   @map("asimetria_index")
+  datosAngulos      String   @map("datos_angulos")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@map("sessions")
+}
