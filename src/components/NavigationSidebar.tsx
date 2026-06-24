@@ -22,7 +22,7 @@ export default function NavigationSidebar() {
         {/* Logo Section */}
         <div className="flex items-center gap-2 px-2 py-1">
           <Activity size={24} className="text-emerald-500" />
-          <span className="font-bold text-md tracking-tight text-zinc-100">Parkinson Analytic</span>
+          <span className="font-bold text-md tracking-tight text-zinc-100">Neuro Vision Analytic</span>
           <span className="recording-dot bg-emerald-500" style={{ width: 6, height: 6 }} />
         </div>
 

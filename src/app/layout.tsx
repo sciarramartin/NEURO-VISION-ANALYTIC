@@ -4,7 +4,7 @@ import { AppProvider } from '@/context/AppContext';
 import NavigationSidebar from '@/components/NavigationSidebar';
 
 export const metadata: Metadata = {
-  title: 'Parkinson Analytic - Análisis Facial',
+  title: 'Neuro Vision Analytic - Análisis Facial',
   description: 'Plataforma clínica para evaluar la movilidad facial y el tremor en pacientes con Parkinson.',
 };
 

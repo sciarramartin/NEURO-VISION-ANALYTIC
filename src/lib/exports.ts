@@ -22,7 +22,7 @@ export function exportarPDF(patient: PatientDetail, sessions: Session[]) {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('PARKINSON ANALYTIC', 14, 18);
+  doc.text('NEURO VISION ANALYTIC', 14, 18);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text('Evaluación y Seguimiento Facial en Parkinson', 14, 26);
@@ -118,7 +118,7 @@ export function exportarExcel(patient: PatientDetail, sessions: Session[]) {
 
   // Sheet 1: Clinical Summary Data
   const summaryHeaders = [
-    ['REPORTE CLÍNICO - PARKINSON ANALYTIC'],
+    ['REPORTE CLÍNICO - NEURO VISION ANALYTIC'],
     [`Paciente: ${patient.name}`],
     [`F. Nacimiento: ${patient.birth_date || 'N/A'}`],
     [`ID Paciente: ${patient.id}`],
